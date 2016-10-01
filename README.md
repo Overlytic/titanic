@@ -26,6 +26,7 @@ from pandas import Series, DataFrame
 # numpy, matplotlib, seaborn
 import numpy as np
 import matplotlib.pyplot as plt
+from statsmodels.graphics.mosaicplot import mosaic
 import seaborn as sns
 
 # configure seaborn
@@ -502,3 +503,223 @@ print("We have %(uniq_surname_size)s unique surnames. I would be interested to i
 
     We have 875 unique surnames. I would be interested to infer ethnicity based on surname --- another time.
 
+
+## 2.2 Do families sink or swim together?
+
+Now that we’ve taken care of splitting passenger name into some new variables, we can take it a step further and make some new family variables. First we’re going to make a **family size** variable based on number of siblings/spouse(s) (maybe someone has more than one spouse?) and number of children/parents.
+
+
+```python
+# Make a copy of the titanic data frame
+family_df = titanic_df.loc[:,["Parch", "SibSp", "Survived"]]
+
+# Create a family size variable including the passenger themselves
+family_df["Fsize"] = family_df.SibSp + family_df.Parch + 1
+
+family_df.head()
+```
+
+
+
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Parch</th>
+      <th>SibSp</th>
+      <th>Survived</th>
+      <th>Fsize</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>1</td>
+      <td>0.0</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>0</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>0</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>0</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0.0</td>
+      <td>1</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+# make figure wider
+plt.figure(figsize=(15,5))
+
+# visualize the relationship between family size & survival
+sns.countplot(x='Fsize', hue="Survived", data=family_df)
+```
+
+
+
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f854e364f90>
+
+
+
+
+![png](output_16_1.png)
+
+
+Ah hah. We can see that there’s a survival penalty to singletons and those with family sizes above 4. We can collapse this variable into three levels which will be helpful since there are comparatively fewer large families. Let’s create a **discretized family size** variable.
+
+
+```python
+# Discretize family size
+family_df.ix[family_df.Fsize > 4, "Fsize"] = "large"
+family_df.ix[family_df.Fsize == 1, "Fsize"] = 'singleton'
+family_df.ix[(family_df.Fsize < 5) & (family_df.Fsize > 1), "Fsize"] = "small"
+
+
+family_df.head(10)
+```
+
+
+
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Parch</th>
+      <th>SibSp</th>
+      <th>Survived</th>
+      <th>Fsize</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>1</td>
+      <td>0.0</td>
+      <td>small</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>0</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>small</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>0</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>singleton</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>0</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>small</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0.0</td>
+      <td>singleton</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0.0</td>
+      <td>singleton</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0.0</td>
+      <td>singleton</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>1</td>
+      <td>3</td>
+      <td>0.0</td>
+      <td>large</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>2</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>small</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>0</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>small</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+# Show family size by survival using a mosaic plot
+mosaic(family_df, ['Fsize', 'Survived'], title="Family size by survival")
+```
+
+
+
+
+    (<matplotlib.figure.Figure at 0x7f854c7556d0>,
+     OrderedDict([(('small', '0.0'), (0.0, 0.0, 0.3244768921336578, 0.41983343193919809)), (('small', '1.0'), (0.0, 0.42315569107541073, 0.3244768921336578, 0.57684430892458916)), (('singleton', '0.0'), (0.3294273871831628, 0.0, 0.5967263393005967, 0.6941479982924702)), (('singleton', '1.0'), (0.3294273871831628, 0.69747025742868274, 0.5967263393005967, 0.30252974257131715)), (('large', '0.0'), (0.9311042215332644, 0.0, 0.06889577846673557, 0.83592326653091842)), (('large', '1.0'), (0.9311042215332644, 0.83924552566713095, 0.06889577846673557, 0.16075447433286888))]))
+
+
+
+
+![png](output_19_1.png)
+
+
+The mosaic plot shows that we preserve our rule that there’s a survival penalty among singletons and large families, but a benefit for passengers in small families. I want to do something further with our age variable, but 263 rows have missing age values, so we will have to wait until after we address missingness.
+
+
+```python
+
+```
